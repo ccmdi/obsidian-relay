@@ -1,0 +1,11 @@
+node_modules/
+main.js
+data.json
+backend/.env
+backend/data/
+backend/ics-output/
+backend/dist/
+
+.gitold/**
+ARCHITECTURE.md
+TODO.md

@@ -1,0 +1,9 @@
+{
+	"id": "relay",
+	"name": "Relay",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "Sync structured objects from your vault to external services.",
+	"author": "ccmdi",
+	"isDesktopOnly": false
+}

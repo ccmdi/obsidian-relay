@@ -1,0 +1,20 @@
+services:
+  relay:
+    build: .
+    ports:
+      - "127.0.0.1:${RELAY_PORT_API:-8080}:${RELAY_PORT_API:-8080}"
+      - "127.0.0.1:${RELAY_PORT_CALDAV:-5232}:${RELAY_PORT_CALDAV:-5232}"
+    environment:
+      - RELAY_API_TOKEN=${RELAY_API_TOKEN:?Set RELAY_API_TOKEN}
+      - RELAY_CALDAV_USER=${RELAY_CALDAV_USER:-relay}
+      - RELAY_CALDAV_PASS=${RELAY_CALDAV_PASS:?Set RELAY_CALDAV_PASS}
+      - RELAY_PORT_API=${RELAY_PORT_API:-8080}
+      - RELAY_PORT_CALDAV=${RELAY_PORT_CALDAV:-5232}
+    volumes:
+      - relay-data:/app/radicale/data
+      - relay-state:/app/data
+    restart: unless-stopped
+
+volumes:
+  relay-data:
+  relay-state:

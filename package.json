@@ -1,0 +1,23 @@
+{
+	"name": "obsidian-relay",
+	"version": "0.1.0",
+	"description": "Sync structured objects from your Obsidian vault to external services.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+	},
+	"keywords": [],
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^16.11.6",
+		"esbuild": "0.25.5",
+		"tslib": "2.4.0",
+		"typescript": "^5.8.3"
+	},
+	"dependencies": {
+		"obsidian": "latest",
+		"rrule": "^2.8.1"
+	}
+}

@@ -27,47 +27,81 @@ if (labels.length === 0) {
   return;
 }
 
-const colors = labels.map((name, i) => eventColors[name] || `hsl(${(i * 360 / labels.length) % 360}, 65%, 55%)`);
-
 el.style.cssText = 'display: flex; flex-direction: column; align-items: center; text-align: center; margin: 1.5rem;';
 
-const canvas = el.createEl('canvas', { attr: { width: 400, height: 400 } });
-canvas.style.maxWidth = '400px';
-const c = canvas.getContext('2d');
-const cx = 200, cy = 180, r = 140;
+let showUnalloc = false;
 
-const bg = getComputedStyle(el).getPropertyValue('--background-primary').trim() || '#1e1e1e';
+const draw = () => {
+  const chartLabels = [...labels];
+  const chartData = [...data];
+  const chartColors = labels.map((name, i) => eventColors[name] || `hsl(${(i * 360 / labels.length) % 360}, 65%, 55%)`);
 
-let angle = -Math.PI / 2;
-for (let i = 0; i < data.length; i++) {
-  const slice = (data[i] / total) * Math.PI * 2;
-  c.beginPath();
-  c.moveTo(cx, cy);
-  c.arc(cx, cy, r, angle, angle + slice);
-  c.fillStyle = colors[i];
-  c.fill();
-  angle += slice;
-}
+  if (showUnalloc) {
+    const unalloc = Math.max(0, 168 - total);
+    chartLabels.push('Unallocated');
+    chartData.push(unalloc);
+    chartColors.push('var(--background-modifier-border)');
+  }
 
-c.lineWidth = 2;
-c.strokeStyle = bg;
-angle = -Math.PI / 2;
-for (let i = 0; i < data.length; i++) {
-  const slice = (data[i] / total) * Math.PI * 2;
-  c.beginPath();
-  c.moveTo(cx, cy);
-  c.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
-  c.stroke();
-  angle += slice;
-}
+  const chartTotal = chartData.reduce((s, v) => s + v, 0);
 
-const legend = el.createEl('div', { attr: { style: 'margin-top: 12px; display: inline-block; columns: 12em 2; font-size: 0.9em; text-align: left;' } });
-for (let i = 0; i < labels.length; i++) {
-  const row = legend.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 6px; margin-bottom: 4px; break-inside: avoid;' } });
-  row.createEl('span', { attr: { style: `width:12px;height:12px;border-radius:2px;flex-shrink:0;background:${colors[i]};display:inline-block;` } });
-  row.createEl('span', { attr: { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;' }, text: labels[i] });
-  row.createEl('span', { attr: { style: 'flex-shrink: 0; color: var(--text-muted);' }, text: ` ${data[i].toFixed(1)}h` });
-}
+  // clear previous chart
+  el.querySelectorAll('canvas, .pie-legend, .pie-total').forEach(e => e.remove());
 
-el.createEl('div', { attr: { style: 'margin-top: 12px; font-size: 0.95em; color: var(--text-muted);' }, text: `Total: ${total.toFixed(1)} hours allotted this week` });
+  const canvas = el.createEl('canvas', { attr: { width: 400, height: 400 } });
+  canvas.style.maxWidth = '400px';
+  const c = canvas.getContext('2d');
+  const cx = 200, cy = 180, r = 140;
+
+  const bg = getComputedStyle(el).getPropertyValue('--background-primary').trim() || '#1e1e1e';
+
+  // resolve css vars for canvas
+  const resolved = chartColors.map(col => {
+    if (col.startsWith('var(')) {
+      const prop = col.slice(4, -1);
+      return getComputedStyle(el).getPropertyValue(prop).trim() || '#555';
+    }
+    return col;
+  });
+
+  let angle = -Math.PI / 2;
+  for (let i = 0; i < chartData.length; i++) {
+    const slice = (chartData[i] / chartTotal) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.arc(cx, cy, r, angle, angle + slice);
+    c.fillStyle = resolved[i];
+    c.fill();
+    angle += slice;
+  }
+
+  c.lineWidth = 2;
+  c.strokeStyle = bg;
+  angle = -Math.PI / 2;
+  for (let i = 0; i < chartData.length; i++) {
+    const slice = (chartData[i] / chartTotal) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+    c.stroke();
+    angle += slice;
+  }
+
+  const legend = el.createEl('div', { cls: 'pie-legend', attr: { style: 'margin-top: 12px; display: inline-block; columns: 12em 2; font-size: 0.9em; text-align: left;' } });
+  for (let i = 0; i < chartLabels.length; i++) {
+    const row = legend.createEl('div', { attr: { style: 'display: flex; align-items: center; gap: 6px; margin-bottom: 4px; break-inside: avoid;' } });
+    row.createEl('span', { attr: { style: `width:12px;height:12px;border-radius:2px;flex-shrink:0;background:${resolved[i]};display:inline-block;` } });
+    row.createEl('span', { attr: { style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;' }, text: chartLabels[i] });
+    row.createEl('span', { attr: { style: 'flex-shrink: 0; color: var(--text-muted);' }, text: ` ${chartData[i].toFixed(1)}h` });
+  }
+
+  el.createEl('div', { cls: 'pie-total', attr: { style: 'margin-top: 12px; font-size: 0.95em; color: var(--text-muted);' }, text: `Total: ${total.toFixed(1)} hours allotted this week` });
+};
+
+const toggle = el.createEl('label', { attr: { style: 'display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--text-muted); cursor: pointer; margin-bottom: 8px;' } });
+const cb = toggle.createEl('input', { attr: { type: 'checkbox' } });
+toggle.appendText('Show unallocated time');
+cb.addEventListener('change', () => { showUnalloc = cb.checked; draw(); });
+
+draw();
 ```

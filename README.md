@@ -1,4 +1,4 @@
-> [!IMPORTANT] WIP
+> [!IMPORTANT]
 > This is a work in progress. The core API is stable but other things (including the name and module system) are likely to change.
 
 # Relay

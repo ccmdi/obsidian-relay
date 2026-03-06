@@ -58,6 +58,10 @@ Pull broadcasts require an allowed folder. All pulled files are written within t
 | Allow modifications | Let pull modify existing local files |
 | Max new files per sync | Cap on files created in a single pull cycle |
 
+## Building a backend
+
+See [docs/BACKEND.md](docs/BACKEND.md) for the full API contract.
+
 ## Settings
 
 Remote URL is the base URL of the relay server (e.g. `https://example.com/relay`). The plugin appends `/sync`, `/events/:id`, `/pull` automatically.

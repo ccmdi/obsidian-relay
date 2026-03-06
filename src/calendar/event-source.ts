@@ -6,6 +6,7 @@ import { CalendarEvent } from "./types";
 export class EventSource {
 	private events = new Map<string, CalendarEvent>();
 	private exdates = new Map<string, Set<string>>();
+	private ruleCache = new Map<string, { recStr: string; startMs: number; rule: ReturnType<typeof rrulestr> }>();
 	private listeners: (() => void)[] = [];
 
 	constructor(
@@ -13,8 +14,12 @@ export class EventSource {
 		private query: string,
 	) {}
 
-	onChange(fn: () => void): void {
+	onChange(fn: () => void): () => void {
 		this.listeners.push(fn);
+		return () => {
+			const i = this.listeners.indexOf(fn);
+			if (i !== -1) this.listeners.splice(i, 1);
+		};
 	}
 
 	private notify(): void {
@@ -24,6 +29,7 @@ export class EventSource {
 	loadAll(): void {
 		this.events.clear();
 		this.exdates.clear();
+		this.ruleCache.clear();
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			this.processFile(file);
 		}
@@ -40,6 +46,7 @@ export class EventSource {
 
 	onFileDeleted(file: TAbstractFile): void {
 		this.exdates.delete(file.path);
+		this.ruleCache.delete(file.path);
 		if (this.events.delete(file.path)) this.notify();
 	}
 
@@ -47,6 +54,9 @@ export class EventSource {
 		const event = this.events.get(oldPath);
 		if (!event) return;
 		this.events.delete(oldPath);
+		const cached = this.ruleCache.get(oldPath);
+		this.ruleCache.delete(oldPath);
+		if (cached) this.ruleCache.set(file.path, cached);
 		event.filePath = file.path;
 		this.events.set(file.path, event);
 		this.notify();
@@ -97,6 +107,7 @@ export class EventSource {
 		} else {
 			this.events.delete(file.path);
 			this.exdates.delete(file.path);
+			this.ruleCache.delete(file.path);
 		}
 	}
 
@@ -139,7 +150,14 @@ export class EventSource {
 				s.getHours(), s.getMinutes(), s.getSeconds(),
 			);
 
-			const rule = rrulestr(`RRULE:${event.recurrence}`, { dtstart });
+			const cached = this.ruleCache.get(event.filePath);
+			let rule;
+			if (cached && cached.recStr === event.recurrence && cached.startMs === s.getTime()) {
+				rule = cached.rule;
+			} else {
+				rule = rrulestr(`RRULE:${event.recurrence}`, { dtstart });
+				this.ruleCache.set(event.filePath, { recStr: event.recurrence!, startMs: s.getTime(), rule });
+			}
 
 			const fakeStart = datetime(
 				rangeStart.getFullYear(), rangeStart.getMonth() + 1, rangeStart.getDate(),

@@ -20,6 +20,7 @@ export class CalendarWeekView extends ItemView {
 	private calendarConfig: CalendarModuleConfig;
 	private nowInterval: number | null = null;
 	private resizeObserver: ResizeObserver | null = null;
+	private lastKnownWidth = 0;
 	private mobile = false;
 	private mobileDay = new Date().getDay();
 	private savedScroll: number | null = null;
@@ -27,6 +28,7 @@ export class CalendarWeekView extends ItemView {
 	private dayColumns: { el: HTMLElement; day: Date }[] = [];
 	private preventClick = false;
 	private dragging = false;
+	private unsubscribeEvents: (() => void) | null = null;
 	private renderQueued = false;
 	private optimistic = new Map<string, { start: Date; end: Date; ts: number }>();
 	private deferredRender: number | null = null;
@@ -51,16 +53,23 @@ export class CalendarWeekView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		this.firstRender = true;
 		this.contentEl.empty();
 		this.contentEl.addClass("relay-calendar");
 
-		this.eventSource.onChange(() => this.requestRender());
+		this.unsubscribeEvents = this.eventSource.onChange(() => this.requestRender());
 
 		this.resizeObserver = new ResizeObserver((entries) => {
 			const width = entries[0]?.contentRect?.width ?? 1000;
+			const wasHidden = this.lastKnownWidth === 0;
+			this.lastKnownWidth = width;
 			const wasMobile = this.mobile;
 			this.mobile = width < 500;
-			if (wasMobile !== this.mobile) this.render();
+			if (wasMobile !== this.mobile) {
+				this.render();
+			} else if (wasHidden && width > 0) {
+				this.scrollToSaved();
+			}
 		});
 		this.resizeObserver.observe(this.contentEl);
 
@@ -71,6 +80,7 @@ export class CalendarWeekView extends ItemView {
 	async onClose(): Promise<void> {
 		if (this.nowInterval != null) window.clearInterval(this.nowInterval);
 		if (this.deferredRender != null) window.clearTimeout(this.deferredRender);
+		this.unsubscribeEvents?.();
 		this.resizeObserver?.disconnect();
 	}
 
@@ -82,9 +92,6 @@ export class CalendarWeekView extends ItemView {
 			return;
 		}
 		const el = this.contentEl;
-		const body = el.querySelector(".relay-cal-body") as HTMLElement | null;
-		this.savedScroll = body?.scrollTop ?? this.savedScroll;
-
 		el.empty();
 		el.toggleClass("is-mobile", this.mobile);
 
@@ -345,15 +352,24 @@ export class CalendarWeekView extends ItemView {
 	}
 
 	private restoreScroll(body: HTMLElement): void {
-		requestAnimationFrame(() => {
-			if (this.firstRender) {
-				const now = new Date();
-				body.scrollTop = Math.max(0, (now.getHours() * 60 + now.getMinutes()) - 60);
-				this.firstRender = false;
-			} else if (this.savedScroll != null) {
-				body.scrollTop = this.savedScroll;
-			}
-		});
+		body.addEventListener("scroll", () => { this.savedScroll = body.scrollTop; });
+		if (this.firstRender) {
+			body.scrollTop = Math.max(0, this.currentTimeOffset());
+			this.firstRender = false;
+		} else if (this.savedScroll != null) {
+			body.scrollTop = this.savedScroll;
+		}
+	}
+
+	private scrollToSaved(): void {
+		const body = this.contentEl.querySelector(".relay-cal-body") as HTMLElement | null;
+		if (!body) return;
+		body.scrollTop = this.savedScroll ?? Math.max(0, this.currentTimeOffset());
+	}
+
+	private currentTimeOffset(): number {
+		const now = new Date();
+		return now.getHours() * 60 + now.getMinutes() - 60;
 	}
 
 	// ---- pointer tracking ----
@@ -1009,48 +1025,6 @@ export class CalendarWeekView extends ItemView {
 		const b = parseInt(hex.substring(4, 6), 16) / 255;
 		const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 		return luminance > 0.5 ? "var(--text-normal)" : "var(--text-on-accent)";
-	}
-
-	private calculateDragPreview(
-		draggedEvent: PositionedEvent,
-		targetDay: Date,
-		startMin: number,
-		durationMin: number,
-	): { column: number; totalColumns: number } | null {
-		const dEnd = new Date(targetDay);
-		dEnd.setDate(dEnd.getDate() + 1);
-		const dayEvents = this.eventSource.getEventsInRange(targetDay, dEnd);
-
-		// Filter out the dragged event (by filePath and original start)
-		const otherEvents = dayEvents.filter(
-			e => !(e.filePath === draggedEvent.filePath && e.start.getTime() === draggedEvent.start.getTime())
-		);
-
-		// Create preview event
-		const newStart = new Date(targetDay);
-		newStart.setHours(Math.floor(startMin / 60), Math.floor(startMin) % 60, 0, 0);
-		const newEnd = new Date(newStart.getTime() + durationMin * 60000);
-
-		const previewEvent: CalendarEvent = {
-			filePath: draggedEvent.filePath,
-			name: draggedEvent.name,
-			start: newStart,
-			end: newEnd,
-			allDay: draggedEvent.allDay,
-			color: draggedEvent.color,
-			recurrence: draggedEvent.recurrence,
-			sourceRecurrence: draggedEvent.sourceRecurrence,
-		};
-
-		// Get layout for all events including preview
-		const positioned = layoutEvents([...otherEvents, previewEvent]);
-
-		// Find the preview event in the positioned results
-		const previewPositioned = positioned.find(
-			(p: PositionedEvent) => p.filePath === draggedEvent.filePath && p.start.getTime() === newStart.getTime()
-		);
-
-		return previewPositioned ? { column: previewPositioned.column, totalColumns: previewPositioned.totalColumns } : null;
 	}
 
 	private calculateDragPreviewWithOthers(

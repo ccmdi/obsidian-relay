@@ -341,12 +341,16 @@ export class CalendarWeekView extends ItemView {
 				(el as HTMLElement).style.top = `${min}px`;
 			});
 
-			// Auto-refresh if date changed
+			// Auto-refresh only when the date rolls over while viewing the current period
 			if (this.mobile) {
-				if (now.getDay() !== this.mobileDay) this.goToday();
+				const viewingToday = this.mobileDay === new Date(now.getTime() - 60000).getDay();
+				if (viewingToday && now.getDay() !== this.mobileDay) this.goToday();
 			} else {
-				const currentWeekStart = weekStartOf(now);
-				if (currentWeekStart.getTime() !== this.weekStart.getTime()) this.goToday();
+				const prevWeekStart = weekStartOf(new Date(now.getTime() - 60000));
+				if (this.weekStart.getTime() === prevWeekStart.getTime()) {
+					const currentWeekStart = weekStartOf(now);
+					if (currentWeekStart.getTime() !== this.weekStart.getTime()) this.goToday();
+				}
 			}
 		}, 60000);
 	}

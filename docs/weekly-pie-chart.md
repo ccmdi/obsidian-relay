@@ -18,20 +18,18 @@ const getRange = (mode) => {
   return { start, end: now };
 };
 
+const es = app.plugins.plugins.relay?.eventSource;
+
 const getEvents = (mode) => {
   const { start: rangeStart, end: rangeEnd } = getRange(mode);
+  const events = es ? es.getEventsInRange(rangeStart, rangeEnd) : [];
   const grouped = {};
   const eventColors = {};
-  for (const file of app.vault.getMarkdownFiles()) {
-    const fm = app.metadataCache.getFileCache(file)?.frontmatter;
-    if (!fm?.interval?.start || !fm?.interval?.end) continue;
-    const start = new Date(fm.interval.start);
-    const end = new Date(fm.interval.end);
-    if (start < rangeStart || start > rangeEnd) continue;
-    const name = fm.name || file.basename;
-    const hours = (end - start) / 3600000;
-    grouped[name] = (grouped[name] || 0) + hours;
-    if (fm.color) eventColors[name] = fm.color;
+  for (const e of events) {
+    if (e.allDay) continue;
+    const hours = (e.end - e.start) / 3600000;
+    grouped[e.name] = (grouped[e.name] || 0) + hours;
+    if (e.color) eventColors[e.name] = e.color;
   }
   const sorted = Object.entries(grouped).sort((a, b) => (eventColors[a[0]] || '').localeCompare(eventColors[b[0]] || '') || b[1] - a[1]);
   const labels = sorted.map(e => e[0]);

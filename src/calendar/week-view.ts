@@ -113,7 +113,7 @@ export class CalendarWeekView extends ItemView {
 
 		for (let i = 0; i < 7; i++) {
 			const d = this.dayAt(i);
-			const b = this.btn(strip, `${DAYS[i]!}\n${d.getDate()}`, "relay-cal-day-chip", () => {
+			const b = this.btn(strip, `${DAYS[d.getDay()]}\n${d.getDate()}`, "relay-cal-day-chip", () => {
 				this.mobileDay = i;
 				this.render();
 			});
@@ -142,7 +142,7 @@ export class CalendarWeekView extends ItemView {
 		for (let i = 0; i < 7; i++) {
 			const d = this.dayAt(i);
 			const h = headers.createDiv({ cls: "relay-cal-day-header" });
-			h.createSpan({ cls: "relay-cal-day-name", text: DAYS[i] });
+			h.createSpan({ cls: "relay-cal-day-name", text: DAYS[d.getDay()] });
 			h.createSpan({ cls: "relay-cal-day-num", text: String(d.getDate()) });
 			if (isToday(d)) h.addClass("is-today");
 		}

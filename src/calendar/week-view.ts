@@ -243,9 +243,9 @@ export class CalendarWeekView extends ItemView {
 		const GAP = 2;
 		const EVENT_GAP = 1;
 		const startMin = minuteOfDay(pe.start);
-		const endMin = minuteOfDay(pe.end);
+		const durMin = durationMinutes(pe.start, pe.end);
 		const top = Math.max(0, startMin) + EVENT_GAP;
-		const bottom = Math.min(24 * 60, endMin) - EVENT_GAP;
+		const bottom = Math.min(24 * 60, startMin + durMin) - EVENT_GAP;
 		const height = Math.max(0, bottom - top);
 
 		const el = dayCol.createDiv({ cls: "relay-cal-event" });
@@ -261,7 +261,6 @@ export class CalendarWeekView extends ItemView {
 			el.style.color = this.getContrastColor(pe.color);
 		}
 
-		const durMin = endMin - startMin;
 		if (durMin >= 20) {
 			const time = pe.start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 			el.createDiv({ cls: "relay-cal-event-time", text: time });
@@ -508,7 +507,7 @@ export class CalendarWeekView extends ItemView {
 			const colRect = dayCol.getBoundingClientRect();
 			const eventStartMin = minuteOfDay(event.start);
 			const grabOffset = (startY - colRect.top) - eventStartMin;
-			const duration = minuteOfDay(event.end) - eventStartMin;
+			const duration = durationMinutes(event.start, event.end);
 
 			const ghost = document.createElement("div");
 			ghost.className = "relay-cal-drag-ghost";
@@ -1141,4 +1140,9 @@ function isToday(d: Date): boolean {
 
 function minuteOfDay(d: Date): number {
 	return d.getHours() * 60 + d.getMinutes();
+}
+
+function durationMinutes(start: Date, end: Date): number {
+	const d = minuteOfDay(end) - minuteOfDay(start);
+	return d >= 0 ? d : 1440 - minuteOfDay(start);
 }

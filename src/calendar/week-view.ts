@@ -242,10 +242,10 @@ export class CalendarWeekView extends ItemView {
 	private renderEvent(dayCol: HTMLElement, pe: PositionedEvent, dayStart: Date): void {
 		const GAP = 2;
 		const EVENT_GAP = 1;
-		const startMin = (pe.start.getTime() - dayStart.getTime()) / 60000;
-		const durMin = (pe.end.getTime() - pe.start.getTime()) / 60000;
+		const startMin = minuteOfDay(pe.start);
+		const endMin = minuteOfDay(pe.end);
 		const top = Math.max(0, startMin) + EVENT_GAP;
-		const bottom = Math.min(24 * 60, startMin + durMin) - EVENT_GAP;
+		const bottom = Math.min(24 * 60, endMin) - EVENT_GAP;
 		const height = Math.max(0, bottom - top);
 
 		const el = dayCol.createDiv({ cls: "relay-cal-event" });
@@ -261,6 +261,7 @@ export class CalendarWeekView extends ItemView {
 			el.style.color = this.getContrastColor(pe.color);
 		}
 
+		const durMin = endMin - startMin;
 		if (durMin >= 20) {
 			const time = pe.start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 			el.createDiv({ cls: "relay-cal-event-time", text: time });
@@ -327,7 +328,7 @@ export class CalendarWeekView extends ItemView {
 
 	private renderNowLine(dayCol: HTMLElement): void {
 		const now = new Date();
-		const min = now.getHours() * 60 + now.getMinutes();
+		const min = minuteOfDay(now);
 		const line = dayCol.createDiv({ cls: "relay-cal-now" });
 		line.style.top = `${min}px`;
 		line.dataset["nowLine"] = "1";
@@ -336,7 +337,7 @@ export class CalendarWeekView extends ItemView {
 	private startNowLine(): void {
 		this.nowInterval = window.setInterval(() => {
 			const now = new Date();
-			const min = now.getHours() * 60 + now.getMinutes();
+			const min = minuteOfDay(now);
 			this.contentEl.querySelectorAll("[data-now-line]").forEach((el) => {
 				(el as HTMLElement).style.top = `${min}px`;
 			});
@@ -372,8 +373,7 @@ export class CalendarWeekView extends ItemView {
 	}
 
 	private currentTimeOffset(): number {
-		const now = new Date();
-		return now.getHours() * 60 + now.getMinutes() - 60;
+		return minuteOfDay(new Date()) - 60;
 	}
 
 	// ---- pointer tracking ----
@@ -506,9 +506,9 @@ export class CalendarWeekView extends ItemView {
 			const originalStyles = new Map<HTMLElement, { width: string; left: string }>();
 
 			const colRect = dayCol.getBoundingClientRect();
-			const eventStartMin = (event.start.getTime() - dayStart.getTime()) / 60000;
+			const eventStartMin = minuteOfDay(event.start);
 			const grabOffset = (startY - colRect.top) - eventStartMin;
-			const duration = (event.end.getTime() - event.start.getTime()) / 60000;
+			const duration = minuteOfDay(event.end) - eventStartMin;
 
 			const ghost = document.createElement("div");
 			ghost.className = "relay-cal-drag-ghost";
@@ -637,8 +637,8 @@ export class CalendarWeekView extends ItemView {
 		edge: "top" | "bottom", initY: number, isTouch: boolean,
 	): void {
 		const GAP = 2;
-		const eventStartMin = (event.start.getTime() - dayStart.getTime()) / 60000;
-		const eventEndMin = (event.end.getTime() - dayStart.getTime()) / 60000;
+		const eventStartMin = minuteOfDay(event.start);
+		const eventEndMin = minuteOfDay(event.end);
 		let resizing = false;
 
 		this.dragging = true;
@@ -1137,4 +1137,8 @@ function sameDay(a: Date, b: Date): boolean {
 
 function isToday(d: Date): boolean {
 	return sameDay(d, new Date());
+}
+
+function minuteOfDay(d: Date): number {
+	return d.getHours() * 60 + d.getMinutes();
 }

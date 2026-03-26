@@ -1,4 +1,4 @@
-import { ItemView, Menu, Modal, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, Modal, Platform, TFile, WorkspaceLeaf } from "obsidian";
 import { datetime, rrulestr } from "rrule";
 import { CalendarModuleConfig } from "../types";
 import {
@@ -22,6 +22,7 @@ export class CalendarWeekView extends ItemView {
 	private resizeObserver: ResizeObserver | null = null;
 	private lastKnownWidth = 0;
 	private mobile = false;
+	private touch = Platform.isMobile;
 	private mobileDay = new Date().getDay();
 	private savedScroll: number | null = null;
 	private firstRender = true;
@@ -274,7 +275,7 @@ export class CalendarWeekView extends ItemView {
 			el.createDiv({ cls: "relay-cal-event-name", text: pe.name });
 		}
 
-		if (this.mobile) {
+		if (this.touch) {
 			this.onTap(el, () => {
 				if (this.preventClick) { this.preventClick = false; return; }
 				this.openEvent(pe);
@@ -314,7 +315,7 @@ export class CalendarWeekView extends ItemView {
 			this.startResize(el, pe, dayCol, dayStart, "bottom", e.clientY, false);
 		});
 
-		if (!this.mobile) {
+		if (!this.touch) {
 			topHandle.addEventListener("touchstart", (e) => {
 				e.stopPropagation();
 				e.preventDefault();

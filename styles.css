@@ -256,14 +256,11 @@
 }
 
 /* mobile touch: let the browser handle vertical scroll */
-.relay-calendar.is-mobile .relay-cal-body {
+.is-mobile .relay-cal-body {
 	touch-action: pan-y;
 }
-.relay-calendar.is-mobile .relay-cal-event {
+.is-mobile .relay-cal-event {
 	touch-action: pan-y;
-}
-.relay-calendar.is-mobile .relay-cal-event-resize {
-	display: none;
 }
 
 /* events */

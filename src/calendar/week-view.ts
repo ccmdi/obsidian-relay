@@ -396,6 +396,7 @@ export class CalendarWeekView extends ItemView {
 				onMove(t.clientX, t.clientY);
 			};
 			const tu = (e: TouchEvent) => {
+				e.preventDefault();
 				document.removeEventListener("touchmove", tm);
 				document.removeEventListener("touchend", tu);
 				document.removeEventListener("touchcancel", tu);

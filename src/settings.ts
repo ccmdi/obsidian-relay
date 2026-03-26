@@ -1,5 +1,6 @@
 import { App, Modal, PluginSettingTab, Setting } from "obsidian";
 import type RelayPlugin from "./main";
+import { InvalidEvent } from "./calendar/event-source";
 import { BroadcastConfig, PullRules, RelaySettings } from "./types";
 import { syncLogs } from "./sync";
 import { validateQuery } from "./query";
@@ -260,6 +261,16 @@ export class RelaySettingTab extends PluginSettingTab {
 					this.plugin.settings.calendar.event_folder = v;
 					await this.save();
 				}));
+
+		const invalid = this.plugin.eventSource.invalidEvents;
+		if (invalid.length > 0) {
+			new Setting(root)
+				.setName(`${invalid.length} event${invalid.length === 1 ? "" : "s"} with invalid dates`)
+				.setDesc("These events matched the calendar query but could not be parsed")
+				.addButton(btn => btn
+					.setButtonText("View")
+					.onClick(() => new InvalidEventsModal(this.app, invalid).open()));
+		}
 	}
 
 	private async save(): Promise<void> {
@@ -314,6 +325,38 @@ class SyncLogModal extends Modal {
 
 	onClose(): void {
 		if (this.interval !== null) window.clearInterval(this.interval);
+		this.contentEl.empty();
+	}
+}
+
+class InvalidEventsModal extends Modal {
+	constructor(app: App, private invalid: InvalidEvent[]) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.titleEl.setText("Events with invalid dates");
+
+		const table = this.contentEl.createEl("table", { cls: "relay-sync-log-table" });
+		const head = table.createEl("thead").createEl("tr");
+		head.createEl("th", { text: "File" });
+		head.createEl("th", { text: "Reason" });
+
+		const body = table.createEl("tbody");
+		for (const entry of this.invalid) {
+			const row = body.createEl("tr");
+			const cell = row.createEl("td");
+			const link = cell.createEl("a", { text: entry.filePath, href: "#" });
+			link.addEventListener("click", (e) => {
+				e.preventDefault();
+				this.app.workspace.openLinkText(entry.filePath, "", false);
+				this.close();
+			});
+			row.createEl("td", { text: entry.reason });
+		}
+	}
+
+	onClose(): void {
 		this.contentEl.empty();
 	}
 }

@@ -255,6 +255,17 @@
 	border-top: none;
 }
 
+/* mobile touch: let the browser handle vertical scroll */
+.relay-calendar.is-mobile .relay-cal-body {
+	touch-action: pan-y;
+}
+.relay-calendar.is-mobile .relay-cal-event {
+	touch-action: pan-y;
+}
+.relay-calendar.is-mobile .relay-cal-event-resize {
+	display: none;
+}
+
 /* events */
 .relay-cal-event {
 	--event-color: var(--interactive-accent);
@@ -498,6 +509,20 @@
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 	border-color: var(--interactive-accent);
+}
+
+/* modal mobile */
+.is-mobile .relay-cal-modal .modal-content {
+	max-height: 70vh;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+.is-mobile .relay-cal-modal-form {
+	padding-bottom: 16px;
+}
+.is-mobile .relay-cal-modal-row {
+	flex-direction: column;
+	gap: 8px;
 }
 
 /* recurrence edit modal */

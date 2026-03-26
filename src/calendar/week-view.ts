@@ -46,7 +46,7 @@ export class CalendarWeekView extends ItemView {
 		return CALENDAR_VIEW_TYPE;
 	}
 	getDisplayText(): string {
-		return "Relay Calendar";
+		return "Calendar";
 	}
 	getIcon(): string {
 		return "calendar";
@@ -274,13 +274,17 @@ export class CalendarWeekView extends ItemView {
 			el.createDiv({ cls: "relay-cal-event-name", text: pe.name });
 		}
 
-		el.addEventListener("click", () => {
-			if (this.preventClick) {
-				this.preventClick = false;
-				return;
-			}
-			this.openEvent(pe);
-		});
+		if (this.mobile) {
+			this.onTap(el, () => {
+				if (this.preventClick) { this.preventClick = false; return; }
+				this.openEvent(pe);
+			});
+		} else {
+			el.addEventListener("click", () => {
+				if (this.preventClick) { this.preventClick = false; return; }
+				this.openEvent(pe);
+			});
+		}
 		el.addEventListener("mousedown", (e) => {
 			if (e.button === 1) {
 				e.preventDefault();
@@ -301,12 +305,6 @@ export class CalendarWeekView extends ItemView {
 			e.preventDefault();
 			this.startResize(el, pe, dayCol, dayStart, "top", e.clientY, false);
 		});
-		topHandle.addEventListener("touchstart", (e) => {
-			e.stopPropagation();
-			e.preventDefault();
-			const t = e.touches[0]; if (!t) return;
-			this.startResize(el, pe, dayCol, dayStart, "top", t.clientY, true);
-		}, { passive: false });
 
 		const bottomHandle = el.createDiv({ cls: "relay-cal-event-resize relay-cal-event-resize-bottom" });
 		bottomHandle.addEventListener("mousedown", (e) => {
@@ -315,12 +313,21 @@ export class CalendarWeekView extends ItemView {
 			e.preventDefault();
 			this.startResize(el, pe, dayCol, dayStart, "bottom", e.clientY, false);
 		});
-		bottomHandle.addEventListener("touchstart", (e) => {
-			e.stopPropagation();
-			e.preventDefault();
-			const t = e.touches[0]; if (!t) return;
-			this.startResize(el, pe, dayCol, dayStart, "bottom", t.clientY, true);
-		}, { passive: false });
+
+		if (!this.mobile) {
+			topHandle.addEventListener("touchstart", (e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				const t = e.touches[0]; if (!t) return;
+				this.startResize(el, pe, dayCol, dayStart, "top", t.clientY, true);
+			}, { passive: false });
+			bottomHandle.addEventListener("touchstart", (e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				const t = e.touches[0]; if (!t) return;
+				this.startResize(el, pe, dayCol, dayStart, "bottom", t.clientY, true);
+			}, { passive: false });
+		}
 
 		this.setupEventDrag(el, pe, dayCol, dayStart);
 	}
@@ -447,6 +454,27 @@ export class CalendarWeekView extends ItemView {
 		};
 		el.addEventListener("touchend", cancel);
 		el.addEventListener("touchcancel", cancel);
+	}
+
+	private onTap(el: HTMLElement, callback: () => void): void {
+		let origin: { x: number; y: number } | null = null;
+		el.addEventListener("touchstart", (e) => {
+			const t = e.touches[0]; if (!t) return;
+			origin = { x: t.clientX, y: t.clientY };
+		}, { passive: true });
+		el.addEventListener("touchmove", (e) => {
+			if (!origin) return;
+			const t = e.touches[0]; if (!t) return;
+			if (Math.abs(t.clientX - origin.x) + Math.abs(t.clientY - origin.y) > 10) {
+				origin = null;
+			}
+		}, { passive: true });
+		el.addEventListener("touchend", (e) => {
+			if (!origin || this.dragging) { origin = null; return; }
+			origin = null;
+			e.preventDefault();
+			callback();
+		});
 	}
 
 	// ---- drag to create ----

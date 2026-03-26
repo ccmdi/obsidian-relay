@@ -39,7 +39,7 @@ export default class RelayPlugin extends Plugin {
 
 		this.addSettingTab(new RelaySettingTab(this.app, this));
 
-		this.addRibbonIcon("calendar", "Relay Calendar", () => {
+		this.addRibbonIcon("calendar", "Calendar", () => {
 			this.activateCalendarView();
 		});
 

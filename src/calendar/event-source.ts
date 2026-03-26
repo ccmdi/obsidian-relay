@@ -3,11 +3,21 @@ import { datetime, rrulestr } from "rrule";
 import { fileMatchesQuery } from "../query";
 import { CalendarEvent } from "./types";
 
+export interface InvalidEvent {
+	filePath: string;
+	reason: string;
+}
+
 export class EventSource {
 	private events = new Map<string, CalendarEvent>();
 	private exdates = new Map<string, Set<string>>();
 	private ruleCache = new Map<string, { recStr: string; startMs: number; rule: ReturnType<typeof rrulestr> }>();
 	private listeners: (() => void)[] = [];
+	private _invalidEvents = new Map<string, InvalidEvent>();
+
+	get invalidEvents(): InvalidEvent[] {
+		return [...this._invalidEvents.values()];
+	}
 
 	constructor(
 		private app: App,
@@ -30,6 +40,7 @@ export class EventSource {
 		this.events.clear();
 		this.exdates.clear();
 		this.ruleCache.clear();
+		this._invalidEvents.clear();
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			this.processFile(file);
 		}
@@ -47,6 +58,7 @@ export class EventSource {
 	onFileDeleted(file: TAbstractFile): void {
 		this.exdates.delete(file.path);
 		this.ruleCache.delete(file.path);
+		this._invalidEvents.delete(file.path);
 		if (this.events.delete(file.path)) this.notify();
 	}
 
@@ -86,18 +98,21 @@ export class EventSource {
 	private processFile(file: TFile): void {
 		if (!fileMatchesQuery(this.app, file, this.query)) {
 			this.events.delete(file.path);
+			this._invalidEvents.delete(file.path);
 			return;
 		}
 
 		const cache = this.app.metadataCache.getFileCache(file);
 		if (!cache?.frontmatter) {
 			this.events.delete(file.path);
+			this._invalidEvents.delete(file.path);
 			return;
 		}
 
-		const event = this.parseEvent(file.path, cache.frontmatter);
-		if (event) {
-			this.events.set(file.path, event);
+		const result = this.parseEvent(file.path, cache.frontmatter);
+		if (result.event) {
+			this.events.set(file.path, result.event);
+			this._invalidEvents.delete(file.path);
 			const rawExdates = cache.frontmatter.exdates;
 			if (Array.isArray(rawExdates) && rawExdates.length > 0) {
 				this.exdates.set(file.path, new Set(rawExdates.map(String)));
@@ -108,15 +123,16 @@ export class EventSource {
 			this.events.delete(file.path);
 			this.exdates.delete(file.path);
 			this.ruleCache.delete(file.path);
+			this._invalidEvents.set(file.path, { filePath: file.path, reason: result.error! });
 		}
 	}
 
-	private parseEvent(filePath: string, fm: Record<string, unknown>): CalendarEvent | null {
+	private parseEvent(filePath: string, fm: Record<string, unknown>): { event: CalendarEvent; error?: undefined } | { event?: undefined; error: string } {
 		const interval = fm.interval as { start?: string; end?: string } | undefined;
-		if (!interval?.start) return null;
+		if (!interval?.start) return { error: "Missing interval.start" };
 
 		const start = new Date(interval.start as string);
-		if (isNaN(start.getTime())) return null;
+		if (isNaN(start.getTime())) return { error: `Invalid start date: "${interval.start}"` };
 
 		let end: Date;
 		if (interval.end) {
@@ -127,14 +143,16 @@ export class EventSource {
 		}
 
 		return {
-			filePath,
-			name: (fm.name as string) ?? filePath.split("/").pop()?.replace(".md", "") ?? "Untitled",
-			start,
-			end,
-			allDay: fm.all_day === true,
-			color: (fm.color as string) ?? null,
-			recurrence: (fm.recurrence as string) ?? null,
-			sourceRecurrence: null,
+			event: {
+				filePath,
+				name: (fm.name as string) ?? filePath.split("/").pop()?.replace(".md", "") ?? "Untitled",
+				start,
+				end,
+				allDay: fm.all_day === true,
+				color: (fm.color as string) ?? null,
+				recurrence: (fm.recurrence as string) ?? null,
+				sourceRecurrence: null,
+			},
 		};
 	}
 

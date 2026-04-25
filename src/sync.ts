@@ -313,9 +313,9 @@ export class SyncEngine {
 				if (!rules.allow_create) { blocked++; continue; }
 				if (created >= rules.max_creates_per_cycle) { blocked++; continue; }
 
-				const rawName = this.config.payload_mode === "raw"
-					? change.id
-					: ((change.payload.name as string) ?? change.id);
+				const rawName = change.note_name
+					?? (change.payload.name as string)
+					?? change.id;
 				const safePath = sanitizePullPath(rawName, rules.allowed_folder);
 				if (!safePath) {
 					console.warn(`Relay [${this.config.name}]: blocked pull create -- invalid path "${rawName}"`);

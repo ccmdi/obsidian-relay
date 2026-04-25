@@ -44,6 +44,7 @@ export interface PullChange {
 	id: string;
 	payload: Record<string, unknown>;
 	hash: string;
+	note_name?: string;
 }
 
 export interface SyncManifest {

@@ -132,6 +132,7 @@ export class EventModal extends Modal {
 		const start = parseDateAndTime(date, startTime);
 		const end = parseDateAndTime(date, endTime);
 		if (!start || !end) return;
+		if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
 
 		if (this.opts.onSaved) await this.opts.onSaved();
 		if (this.editing) {

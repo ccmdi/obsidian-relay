@@ -163,7 +163,7 @@ export class CalendarWeekView extends ItemView {
 			this.dayColumns.push({ el: col, day: d });
 			for (let h = 0; h < 24; h++) col.createDiv({ cls: "relay-cal-hour-line" });
 
-			const dayEvents = timed.filter((e) => sameDay(e.start, d));
+			const dayEvents = eventsForDay(timed, d);
 			for (const pe of layoutEvents(dayEvents)) this.renderEvent(col, pe, d);
 
 			if (isToday(d)) this.renderNowLine(col);
@@ -205,7 +205,7 @@ export class CalendarWeekView extends ItemView {
 		const col = cols.createDiv({ cls: "relay-cal-day-col" });
 		this.dayColumns = [{ el: col, day: d }];
 		for (let h = 0; h < 24; h++) col.createDiv({ cls: "relay-cal-hour-line" });
-		for (const pe of layoutEvents(timed)) this.renderEvent(col, pe, d);
+		for (const pe of layoutEvents(eventsForDay(timed, d))) this.renderEvent(col, pe, d);
 		if (isToday(d)) this.renderNowLine(col);
 		this.setupDragCreate(col, d);
 
@@ -256,6 +256,8 @@ export class CalendarWeekView extends ItemView {
 		el.style.width = `calc(${100 / pe.totalColumns}% - ${GAP * 2}px)`;
 		el.dataset.eventPath = pe.filePath;
 		el.dataset.eventStart = String(pe.start.getTime());
+		if (pe.originalStart) el.addClass("is-continuation");
+		if (pe.originalEnd) el.addClass("is-continued");
 
 		if (pe.color) {
 			el.style.setProperty("--event-color", pe.color);
@@ -299,38 +301,40 @@ export class CalendarWeekView extends ItemView {
 			this.showEventMenu(pe, e.clientX, e.clientY);
 		});
 
-		const topHandle = el.createDiv({ cls: "relay-cal-event-resize relay-cal-event-resize-top" });
-		topHandle.addEventListener("mousedown", (e) => {
-			if (e.button !== 0) return;
-			e.stopPropagation();
-			e.preventDefault();
-			this.startResize(el, pe, dayCol, dayStart, "top", e.clientY, false);
-		});
-
-		const bottomHandle = el.createDiv({ cls: "relay-cal-event-resize relay-cal-event-resize-bottom" });
-		bottomHandle.addEventListener("mousedown", (e) => {
-			if (e.button !== 0) return;
-			e.stopPropagation();
-			e.preventDefault();
-			this.startResize(el, pe, dayCol, dayStart, "bottom", e.clientY, false);
-		});
-
-		if (!this.touch) {
-			topHandle.addEventListener("touchstart", (e) => {
+		if (!pe.originalStart && !pe.originalEnd) {
+			const topHandle = el.createDiv({ cls: "relay-cal-event-resize relay-cal-event-resize-top" });
+			topHandle.addEventListener("mousedown", (e) => {
+				if (e.button !== 0) return;
 				e.stopPropagation();
 				e.preventDefault();
-				const t = e.touches[0]; if (!t) return;
-				this.startResize(el, pe, dayCol, dayStart, "top", t.clientY, true);
-			}, { passive: false });
-			bottomHandle.addEventListener("touchstart", (e) => {
+				this.startResize(el, pe, dayCol, dayStart, "top", e.clientY, false);
+			});
+
+			const bottomHandle = el.createDiv({ cls: "relay-cal-event-resize relay-cal-event-resize-bottom" });
+			bottomHandle.addEventListener("mousedown", (e) => {
+				if (e.button !== 0) return;
 				e.stopPropagation();
 				e.preventDefault();
-				const t = e.touches[0]; if (!t) return;
-				this.startResize(el, pe, dayCol, dayStart, "bottom", t.clientY, true);
-			}, { passive: false });
+				this.startResize(el, pe, dayCol, dayStart, "bottom", e.clientY, false);
+			});
+
+			if (!this.touch) {
+				topHandle.addEventListener("touchstart", (e) => {
+					e.stopPropagation();
+					e.preventDefault();
+					const t = e.touches[0]; if (!t) return;
+					this.startResize(el, pe, dayCol, dayStart, "top", t.clientY, true);
+				}, { passive: false });
+				bottomHandle.addEventListener("touchstart", (e) => {
+					e.stopPropagation();
+					e.preventDefault();
+					const t = e.touches[0]; if (!t) return;
+					this.startResize(el, pe, dayCol, dayStart, "bottom", t.clientY, true);
+				}, { passive: false });
+			}
+
+			this.setupEventDrag(el, pe, dayCol, dayStart);
 		}
-
-		this.setupEventDrag(el, pe, dayCol, dayStart);
 	}
 
 	private renderNowLine(dayCol: HTMLElement): void {
@@ -1172,7 +1176,37 @@ function minuteOfDay(d: Date): number {
 	return d.getHours() * 60 + d.getMinutes();
 }
 
+function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
+	const dayStart = new Date(day);
+	dayStart.setHours(0, 0, 0, 0);
+	const dayEnd = new Date(dayStart);
+	dayEnd.setDate(dayEnd.getDate() + 1);
+	const dayStartMs = dayStart.getTime();
+	const dayEndMs = dayEnd.getTime();
+
+	const result: CalendarEvent[] = [];
+	for (const e of events) {
+		const eStartMs = e.start.getTime();
+		const eEndMs = e.end.getTime();
+		if (eEndMs <= dayStartMs || eStartMs >= dayEndMs) continue;
+
+		const clampStart = eStartMs < dayStartMs;
+		const clampEnd = eEndMs > dayEndMs;
+		if (!clampStart && !clampEnd) {
+			result.push(e);
+		} else {
+			result.push({
+				...e,
+				start: clampStart ? dayStart : e.start,
+				end: clampEnd ? dayEnd : e.end,
+				originalStart: clampStart ? e.start : undefined,
+				originalEnd: clampEnd ? e.end : undefined,
+			});
+		}
+	}
+	return result;
+}
+
 function durationMinutes(start: Date, end: Date): number {
-	const d = minuteOfDay(end) - minuteOfDay(start);
-	return d >= 0 ? d : 1440 - minuteOfDay(start);
+	return Math.max(0, (end.getTime() - start.getTime()) / 60000);
 }

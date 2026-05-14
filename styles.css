@@ -326,6 +326,17 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* cross-midnight segments */
+.relay-cal-event.is-continuation {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-top: 1px dashed var(--event-color);
+}
+.relay-cal-event.is-continued {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
 /* now line */
 .relay-cal-now {
 	position: absolute;

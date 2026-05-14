@@ -7,6 +7,8 @@ export interface CalendarEvent {
 	color: string | null;
 	recurrence: string | null;
 	sourceRecurrence: string | null;
+	originalStart?: Date;
+	originalEnd?: Date;
 }
 
 export interface PositionedEvent extends CalendarEvent {

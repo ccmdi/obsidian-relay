@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-relay",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Sync structured objects from your Obsidian vault to external services.",
 	"main": "main.js",
 	"type": "module",
